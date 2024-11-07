@@ -43,6 +43,7 @@ jobs:
       
       - name: Check and create KV
         run: |
+          cd dist/pages
           set -x
           KV_LIST=$(wrangler kv namespace list)
           KV_ID=$(echo $KV_LIST | jq -r '.[] | select(.title == "edge-feeds-KV") | .id')

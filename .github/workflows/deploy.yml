@@ -26,11 +26,9 @@ jobs:
       - name: Verify Cloudflare API Token
         run: |
           echo "Verifying Cloudflare API Token..."
-          if ! wrangler whoami; then
-            if wrangler whoami | grep -q "You are not authenticated."; then
-              echo "Cloudflare API Token is not set. Please set it in the repository secrets."
-              exit 1
-            fi
+          if wrangler whoami | grep -q "You are not authenticated."; then
+            echo "Cloudflare API Token is not set. Please set it in the repository secrets."
+            exit 1
           fi
       
       - name: Install pnpm
@@ -79,5 +77,5 @@ jobs:
           pnpm i
           wrangler deploy
 
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+env:
+  CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}

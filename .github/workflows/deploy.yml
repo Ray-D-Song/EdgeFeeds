@@ -2,8 +2,8 @@ name: Deploy
 
 on:
   push:
-    tags:
-      - v*
+    branches:
+      - main
   workflow_dispatch:
 
 jobs:
@@ -26,7 +26,12 @@ jobs:
       - name: Verify Cloudflare API Token
         run: |
           echo "Verifying Cloudflare API Token..."
-          wrangler whoami
+          if ! wrangler whoami; then
+            if wrangler whoami | grep -q "You are not authenticated."; then
+              echo "Cloudflare API Token is not set. Please set it in the repository secrets."
+              exit 1
+            fi
+          fi
       
       - name: Install pnpm
         run: |

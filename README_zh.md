@@ -77,17 +77,18 @@ export default createFeedModule({
 ## 部署
 
 EdgeFeeds 需要部署一个 Cloudflare Workers(用于定时更新) 和 Cloudflare Pages 站点(用于生成 RSS)。
-首先下载
 
 > [!NOTE]  
 > 为什么要拆成两个服务？
 > 因为 Worker 不支持自调用，Pages 不支持 cron 定时任务。😂
 
-### 1. 部署 Pages
+### 1. 一键部署
 
-### 2. 部署 Workers
+[![Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/ray-d-song/EdgeFeeds) 
 
-### 3. 刷新
+### 2. 更新环境变量
+
+### 3. 触发更新
 
 ## 依赖
 - linkedom: 解析 HTML

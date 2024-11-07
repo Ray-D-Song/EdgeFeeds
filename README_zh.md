@@ -71,7 +71,7 @@ export default createFeedModule({
 我很喜欢 RSSHub，它是一个非常强大的项目，但目前不支持部署到 Cloudflare 这样的边缘平台。  
 而且 RSSHub 为了支持各种灵活的解析，增加新的路由变得很复杂。  
 
-如果你只是想抓取以内容为主的网站，比如某些公司的科技分享，那你可以使用 EdgeFeeds。  
+如果你只是想抓取以内容为主的网站，比如某些公司的技术分享，那你可以使用 EdgeFeeds。  
 但如果你需要更复杂的抓取，比如使用无头浏览器对结果进行特定处理，那你还是应该使用 RSSHub。
 
 ## 部署
@@ -88,7 +88,22 @@ EdgeFeeds 需要部署一个 Cloudflare Workers(用于定时更新) 和 Cloudfla
 
 ### 2. 更新环境变量
 
+在你的 Cloudflare `Workers 和 Pages` 的概述面板中，会显示 `readable-scrape` 和 `edge-feeds` 两个新部署上去的服务。
+
+![image](./static/worker-and-pages.png)
+
+接下来需要为 `edge-feeds` 增加环境变量`READABLE_SCRAPE_HOST`, 值为 `readable-scrape` 服务部署上去的 URL。
+还要为 `readable-scrape` 增加环境变量 `FEED_HOST`, 值为 `edge-feeds` 部署上去的 URL。
+
+![image](./static/var.png)
+
 ### 3. 触发更新
+
+在一键部署的过程中会将仓库 fork 到你的名下。
+在更新完环境变量后，需要手动触发你 fork 的仓库的`Github Actions`，重新部署 Workers 和 Pages，使配置生效。
+在`EdgeFeeds`的`Actions`标签中，找到`Deploy`一栏，点击`Run workflow`。
+
+![image](./static/re-actions.png)
 
 ## 依赖
 - linkedom: 解析 HTML

@@ -1,0 +1,20 @@
+{
+  "name": "edge-feeds",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build"
+  },
+  "dependencies": {
+    "@extractus/article-extractor": "^8.0.15",
+    "feed": "^4.2.2",
+    "hono": "^4.6.9"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20240529.0",
+    "wrangler": "^3.57.2",
+    "@hono/vite-build": "^1.0.0",
+    "@hono/vite-dev-server": "^0.15.1",
+    "vite": "^5.2.12"
+  }
+}

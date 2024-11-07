@@ -1,0 +1,6 @@
+name = "readable-scrape"
+main = "src/index.ts"
+compatibility_date = "2023-10-30"
+
+[triggers]
+crons = ["0 * * * *"]

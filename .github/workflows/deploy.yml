@@ -68,7 +68,7 @@ jobs:
             wrangler pages project create edge-feeds --production-branch=main
           fi
   
-      - name: Deploy
+      - name: Deploy pages
         run: cd dist/pages && wrangler pages deploy
 
       - name: Deploy worker

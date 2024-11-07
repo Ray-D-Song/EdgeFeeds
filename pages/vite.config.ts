@@ -28,10 +28,14 @@ export default modules
     if (process.env.NODE_ENV === 'production') {
       writeFileSync('../dist/pages/wrangler.toml', `name = "edge-feeds"
 
-pages_build_output_dir = "dist"
+pages_build_output_dir = "."
 
 compatibility_date = "2024-11-06"
 compatibility_flags = [ "nodejs_compat" ]
+
+[[kv_namespaces]]
+binding = "KV"
+id = "xxxxx"
         `)
     }
   }

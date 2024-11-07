@@ -61,8 +61,8 @@ jobs:
       - name: update wrangler.toml
         run: |
           cd dist/pages
-          sed -i 's/id = ".*"/id = "'$KV_ID'"/' wrangler.toml
-          sed -i 's/READABLE-SCRAPE-HOST-SLOT/'$READABLE_SCRAPE_HOST'/' wrangler.toml
+          sed -i 's|id = ".*"|id = "'$KV_ID'"|' wrangler.toml
+          sed -i 's|READABLE-SCRAPE-HOST-SLOT|'$READABLE_SCRAPE_HOST'|' wrangler.toml
 
       - name: Create Pages project if not exists
         run: |
@@ -76,7 +76,7 @@ jobs:
       - name: Deploy worker
         run: |
           cd worker
-          sed -i 's/FEED-HOST-SLOT/'$FEED_HOST'/' wrangler.toml
+          sed -i 's|FEED-HOST-SLOT|'$FEED_HOST'|' wrangler.toml
           pnpm i
           wrangler deploy
 

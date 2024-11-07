@@ -92,14 +92,13 @@ EdgeFeeds 需要部署一个 Cloudflare Workers(用于定时更新) 和 Cloudfla
 
 ![image](./static/worker-and-pages.png)
 
-接下来需要为 `edge-feeds` 增加环境变量`READABLE_SCRAPE_HOST`, 值为 `readable-scrape` 服务部署上去的 URL。
-还要为 `readable-scrape` 增加环境变量 `FEED_HOST`, 值为 `edge-feeds` 部署上去的 URL。
+在一键部署的过程中会将仓库 fork 到你的名下。
+获取这两个服务的地址，并在仓库的`Settings`->`Secrets`中增加新的密钥`READABLE_SCRAPE_HOST`和`FEED_HOST`。
 
-![image](./static/var.png)
+![image](./static/secrets.png)
 
 ### 3. 触发更新
 
-在一键部署的过程中会将仓库 fork 到你的名下。
 在更新完环境变量后，需要手动触发你 fork 的仓库的`Github Actions`，重新部署 Workers 和 Pages，使配置生效。
 在`EdgeFeeds`的`Actions`标签中，找到`Deploy`一栏，点击`Run workflow`。
 

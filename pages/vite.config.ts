@@ -35,8 +35,11 @@ compatibility_flags = [ "nodejs_compat" ]
 
 [[kv_namespaces]]
 binding = "KV"
-id = "xxxxx"
-        `)
+id = "xxx"
+
+[vars]
+READABLE_SCRAPE_HOST = "READABLE-SCRAPE-HOST-SLOT"
+`)
     }
   }
 }

@@ -77,7 +77,7 @@ function createFeedModule(opt: Options) {
         // await c.env.KV.put(keyName, JSON.stringify(updatedCache))
 
         const { moduleNumber, moduleTotal } = c.req.valid('query')
-        const res = await fetch(`${c.req.url.replace('/refresh', '')}/extract?moduleNumber=${moduleNumber}&moduleTotal=${moduleTotal}&taskNum=0`)
+        const res = await fetch(`${c.req.url.split('/refresh')[0]}/extract?moduleNumber=${moduleNumber}&moduleTotal=${moduleTotal}&taskNum=0`)
         if (!res.ok) return c.json({ error: 'Extract failed' }, 500)
       }
 

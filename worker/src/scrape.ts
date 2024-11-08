@@ -8,7 +8,6 @@ export const scrape = async ({
 }) => {
   const response = await fetch(url);
   const html = await response.text();
-  console.log("html", html);
   const article = extract(html);
 
   if (article == null) {

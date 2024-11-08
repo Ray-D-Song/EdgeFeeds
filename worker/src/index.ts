@@ -10,7 +10,6 @@ app.get(
     if (!url || url.length === 0)
       return c.json({ page: null, error: 'url is required' })
     try {
-      console.log("scraping", url);
       const page = await scrape({ url });
       return c.json({ page });
     } catch (e) {

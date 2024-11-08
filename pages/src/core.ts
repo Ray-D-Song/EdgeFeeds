@@ -30,8 +30,6 @@ function createFeedModule(opt: Options) {
   newModule.get('/feed', async (c) => {
     const currentTime = new Date()
     const lastUpdate = await c.env.KV.get(`last-update-${keyName}`)
-    console.log('lastUpdate', lastUpdate)
-    console.log('currentTime', currentTime)
     if (!lastUpdate || currentTime.getTime() - new Date(lastUpdate).getTime() > 6 * 60 * 60 * 1000) {
       const res = await fetch(`${c.req.url.split('/feed')[0]}/refresh`)
       if (!res.ok) return c.json({ error: 'Refresh failed, please try again later' }, 500)
@@ -42,11 +40,8 @@ function createFeedModule(opt: Options) {
 
   newModule.get('/refresh', async (c) => {
     const links = (await getLinksMethod()).slice(0, 5)
-    console.log('links', links)
     const currentFeedLinks = (await c.env.KV.get(`links-${keyName}`, 'json')) as string[] || []
-    console.log('currentFeedLinks', currentFeedLinks)
     const unCachedLinks = links?.filter((link) => !currentFeedLinks.some((cache) => cache === link)).slice(0, 5)
-    console.log('unCachedLinks', unCachedLinks)
 
     if (unCachedLinks && unCachedLinks.length > 0) {
       for (const link of unCachedLinks) {
@@ -66,7 +61,6 @@ function createFeedModule(opt: Options) {
       }
     }
     const linksNeedCombine = currentFeedLinks.slice(0, 5)
-    console.log('linksNeedCombine', linksNeedCombine)
     const res = await fetch(`${c.req.url.split('/refresh')[0]}/combine`, {
       method: 'POST',
       body: JSON.stringify(linksNeedCombine)
@@ -79,7 +73,6 @@ function createFeedModule(opt: Options) {
 
   newModule.post('/combine', async (c) => {
     const links = await c.req.json()
-    console.log('combine_links', links)
     if (!links || !Array.isArray(links)) return c.json({ error: 'Links is required' }, 400)
     let contents: Content[] = []
     for (const link of links) {

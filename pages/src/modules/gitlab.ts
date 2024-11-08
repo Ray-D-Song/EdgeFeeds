@@ -13,7 +13,7 @@ export default createFeedModule({
     if (!response.ok) return []
     const html = await response.text()
     const links: string[] = []
-    htmlRewriter
+    await htmlRewriter
       .on('.card > a', {
         element: (element) => {
           const href = element.getAttribute('href')
@@ -23,6 +23,7 @@ export default createFeedModule({
         }
       })
       .transform(new Response(html))
+      .text()
     return links.map(link => `https://about.gitlab.com${formatUrl(link)}`)
   },
 })

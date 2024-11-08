@@ -19,8 +19,8 @@ export default createFeedModule({
     if (!response.ok) return []
     const html = await response.text()
     const links: string[] = []
-    htmlRewriter
-      .on('.sidebarItem_lnhn > a', {
+    await htmlRewriter
+      .on('.sidebarItemLink_yNGZ', {
         element: (element) => {
           const href = element.getAttribute('href')
           if (href && links.indexOf(href) === -1) {
@@ -29,6 +29,7 @@ export default createFeedModule({
         }
       })
       .transform(new Response(html))
+      .text()
     return links.map(link => `https://reactnative.dev${formatUrl(link)}`)
   },
 })

@@ -1,5 +1,12 @@
 import { Hono } from 'hono'
 import { Feed } from 'feed'
+import { validator } from 'hono/validator'
+import { MODULES } from './constants'
+
+interface Task {
+  moduleName: string
+  todoTasks: string[]
+}
 
 interface Options {
   /**
@@ -29,28 +36,53 @@ function createFeedModule(opt: Options) {
 
   const newModule = new Hono<{ Bindings: Bindings }>()
 
-  newModule.get('/refresh', async (c) => {
-    const links = await getLinksMethod()
-    const cache = await c.env.KV.get(keyName, 'json')
-    const moduleCache = cache ? cache as ModuleCache : []
-    const unCachedLinks = links?.filter((link) => !moduleCache.some((cache) => cache.path === link)).slice(0, 5)
+  newModule.get('/refresh', 
+    validator('query', (value, c) => {
+      if (!value.moduleNumber) {
+        return c.json({ error: 'moduleNumber is required' }, 400)
+      }
+      if (!value.moduleTotal) {
+        return c.json({ error: 'moduleTotal is required' }, 400)
+      }
+      if (value.moduleNumber > value.moduleTotal) {
+        return c.json({ error: 'moduleNumber is greater than moduleTotal' }, 400)
+      }
+      return {
+        moduleNumber: Number(value.moduleNumber),
+        moduleTotal: Number(value.moduleTotal)
+      }
+    }),
+    async (c) => {
+      const links = await getLinksMethod()
+      const cache = await c.env.KV.get(keyName, 'json')
+      const moduleCache = cache ? cache as ModuleCache : []
+      const unCachedLinks = links?.filter((link) => !moduleCache.some((cache) => cache.path === link)).slice(0, 5)
 
-    if (unCachedLinks && unCachedLinks.length > 0) {
-      const fetchPromises = unCachedLinks.map(async (link) => {
-        const res = await fetch(`${c.req.url.replace('/refresh', '')}/extract?link=${link}`)
-        if (!res.ok) return null
-        const contentKey = await res.text()
-        return { path: link, contentKey }
-      })
+      if (unCachedLinks && unCachedLinks.length > 0) {
+        const tasks = (await c.env.KV.get('tasks', 'json')) as Task[] || []
+        const newTasks = unCachedLinks.map(linkConvertMethod)
+        const updatedTasks = [...tasks, { moduleName: keyName, todoTasks: newTasks }]
+        await c.env.KV.put('tasks', JSON.stringify(updatedTasks))
 
-      const results = await Promise.all(fetchPromises)
-      const successfulResults = results.filter(result => result !== null)
-      const updatedCache = [...moduleCache, ...successfulResults]
-      await c.env.KV.put(keyName, JSON.stringify(updatedCache))
-    }
+        // const fetchPromises = unCachedLinks.map(async (link) => {
+        //   const res = await fetch(`${c.req.url.replace('/refresh', '')}/extract?link=${link}`)
+        //   if (!res.ok) return null
+        //   const contentKey = await res.text()
+        //   return { path: link, contentKey }
+        // })
 
-    const res = await fetch(`${c.req.url.replace('/refresh', '')}/combine`)
-    if (!res.ok) return c.json({ error: 'Combine failed' }, 500)
+        // const results = await Promise.all(fetchPromises)
+        // const successfulResults = results.filter(result => result !== null)
+        // const updatedCache = [...moduleCache, ...successfulResults]
+        // await c.env.KV.put(keyName, JSON.stringify(updatedCache))
+
+        const { moduleNumber, moduleTotal } = c.req.valid('query')
+        const res = await fetch(`${c.req.url.replace('/refresh', '')}/extract?moduleNumber=${moduleNumber}&moduleTotal=${moduleTotal}&taskNum=0`)
+        if (!res.ok) return c.json({ error: 'Extract failed' }, 500)
+      }
+
+      // const res = await fetch(`${c.req.url.replace('/refresh', '')}/combine`)
+      // if (!res.ok) return c.json({ error: 'Combine failed' }, 500)
 
     return c.text('ok')
   })
@@ -62,10 +94,22 @@ function createFeedModule(opt: Options) {
     excerpt: string
     siteName: string
   }
-  newModule.get('/extract', async (c) => {
-    const link = c.req.query('link')
-    if (!link) return c.json({ error: 'Link is required' }, 400)
-    const originalLink = linkConvertMethod(link)
+  newModule.get('/extract', validator('query', (value, c) => {
+    if (!value.moduleNumber) return c.json({ error: 'moduleNumber is required' }, 400)
+    if (!value.moduleTotal) return c.json({ error: 'moduleTotal is required' }, 400)
+    if (!value.taskNum) return c.json({ error: 'taskNum is required' }, 400)
+    return {
+      moduleNumber: Number(value.moduleNumber),
+      moduleTotal: Number(value.moduleTotal),
+      taskNum: Number(value.taskNum)
+    }
+  }), async (c) => {
+    const { moduleNumber, moduleTotal, taskNum } = c.req.valid('query')
+    const tasks = (await c.env.KV.get('tasks', 'json')) as Task[] || []
+    const task = tasks.find((task) => task.moduleName === keyName)
+    if (!task) return c.json({ error: 'Task not found' }, 404)
+
+    const originalLink = task.todoTasks[taskNum]
     const sourceResponse = await fetch(`${c.env.READABLE_SCRAPE_HOST}?url=${originalLink}`)
     if (!sourceResponse.ok) return c.json({ error: 'Content extraction failed' }, 404)
     const source = (await sourceResponse.json()) as {page: Source}
@@ -74,13 +118,20 @@ function createFeedModule(opt: Options) {
     const { page } = source
     const contentKey = crypto.randomUUID()
     await c.env.KV.put(`${keyName}-${contentKey}`, JSON.stringify({
-      id: link,
+      id: originalLink,
       link: originalLink,
       content: page.content,
       title: page.title,
       description: page.excerpt,
       date: new Date()
     }))
+    if (task.todoTasks.length === taskNum + 1) {
+      const res = await fetch(`${c.req.url.replace('/extract', '')}/combine?moduleNumber=${moduleNumber}&moduleTotal=${moduleTotal}`)
+      if (!res.ok) return c.json({ error: 'Combine failed' }, 500)
+    } else {
+      const res = await fetch(`${c.req.url.replace('/extract', '')}/extract?moduleNumber=${moduleNumber}&moduleTotal=${moduleTotal}&taskNum=${taskNum + 1}`)
+      if (!res.ok) return c.json({ error: 'Extract failed' }, 500)
+    }
     return c.text(`${keyName}-${contentKey}`)
   })
 
@@ -89,7 +140,15 @@ function createFeedModule(opt: Options) {
     return c.html(rss || '')
   })
 
-  newModule.get('/combine', async (c) => {
+  newModule.get('/combine', validator('query', (value, c) => {
+    if (!value.moduleNumber) return c.json({ error: 'moduleNumber is required' }, 400)
+    if (!value.moduleTotal) return c.json({ error: 'moduleTotal is required' }, 400)
+    return {
+      moduleNumber: Number(value.moduleNumber),
+      moduleTotal: Number(value.moduleTotal)
+    }
+  }), async (c) => {
+    const { moduleNumber, moduleTotal } = c.req.valid('query')
     const list = await c.env.KV.list({
       prefix: `${keyName}-`,
       limit: 5
@@ -118,6 +177,10 @@ function createFeedModule(opt: Options) {
     })
     const rss = feed.rss2()
     await c.env.KV.put(`feed-${keyName}`, rss)
+    if (moduleNumber === moduleTotal - 1) {
+      const res = await fetch(`${c.req.url.replace('/combine', '')}/refresh-handler?moduleNumber=${moduleNumber + 1}&moduleTotal=${moduleTotal}`)
+      if (!res.ok) return c.json({ error: `Refresh handler failed: ${MODULES[moduleNumber + 1]}` }, 500)
+    }
     return c.text('ok')
   })
 

@@ -14,7 +14,7 @@ export default createFeedModule({
     if (!response.ok) return []
     const html = await response.text()
     const links: string[] = []
-    htmlRewriter
+    await htmlRewriter
       .on('.post-preview > a', {
         element: (element) => {
           console.log('getLinksMethod_element', element)

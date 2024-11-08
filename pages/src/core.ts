@@ -29,7 +29,9 @@ function createFeedModule(opt: Options) {
 
   newModule.get('/feed', async (c) => {
     const currentTime = new Date()
-    const lastUpdate = await c.env.KV.get(`${keyName}-last-update`)
+    const lastUpdate = await c.env.KV.get(`last-update-${keyName}`)
+    console.log('lastUpdate', lastUpdate)
+    console.log('currentTime', currentTime)
     if (!lastUpdate || currentTime.getTime() - new Date(lastUpdate).getTime() > 6 * 60 * 60 * 1000) {
       const res = await fetch(`${c.req.url.split('/feed')[0]}/refresh`)
       if (!res.ok) return c.json({ error: 'Refresh failed, please try again later' }, 500)
@@ -80,10 +82,10 @@ function createFeedModule(opt: Options) {
     console.log('combine_links', links)
     if (!links || !Array.isArray(links)) return c.json({ error: 'Links is required' }, 400)
     let contents: Content[] = []
-    links.forEach(async (link) => {
+    for (const link of links) {
       const content = await c.env.KV.get(`${keyName}-${link}`)
       if (content) contents.push(JSON.parse(content))
-    })
+    }
     const feed = new Feed({
       title,
       description,

@@ -126,10 +126,10 @@ function createFeedModule(opt: Options) {
       date: new Date()
     }))
     if (task.todoTasks.length === taskNum + 1) {
-      const res = await fetch(`${c.req.url.replace('/extract', '')}/combine?moduleNumber=${moduleNumber}&moduleTotal=${moduleTotal}`)
+      const res = await fetch(`${c.req.url.split('/extract')[0]}/combine?moduleNumber=${moduleNumber}&moduleTotal=${moduleTotal}`)
       if (!res.ok) return c.json({ error: 'Combine failed' }, 500)
     } else {
-      const res = await fetch(`${c.req.url.replace('/extract', '')}/extract?moduleNumber=${moduleNumber}&moduleTotal=${moduleTotal}&taskNum=${taskNum + 1}`)
+      const res = await fetch(`${c.req.url.split('?')[0]}moduleNumber=${moduleNumber}&moduleTotal=${moduleTotal}&taskNum=${taskNum + 1}`)
       if (!res.ok) return c.json({ error: 'Extract failed' }, 500)
     }
     return c.text(`${keyName}-${contentKey}`)

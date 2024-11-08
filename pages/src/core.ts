@@ -55,8 +55,8 @@ function createFeedModule(opt: Options) {
     async (c) => {
       const links = await getLinksMethod()
       const cache = await c.env.KV.get(keyName, 'json')
-      const moduleCache = cache ? cache as ModuleCache : []
-      const unCachedLinks = links?.filter((link) => !moduleCache.some((cache) => cache.path === link)).slice(0, 5)
+      const moduleCache = cache ? cache as string[] : []
+      const unCachedLinks = links?.filter((link) => !moduleCache.some((cache) => cache === linkConvertMethod(link))).slice(0, 5)
 
       if (unCachedLinks && unCachedLinks.length > 0) {
         const tasks = (await c.env.KV.get('tasks', 'json')) as Task[] || []
@@ -64,25 +64,10 @@ function createFeedModule(opt: Options) {
         const updatedTasks = [...tasks, { moduleName: keyName, todoTasks: newTasks }]
         await c.env.KV.put('tasks', JSON.stringify(updatedTasks))
 
-        // const fetchPromises = unCachedLinks.map(async (link) => {
-        //   const res = await fetch(`${c.req.url.replace('/refresh', '')}/extract?link=${link}`)
-        //   if (!res.ok) return null
-        //   const contentKey = await res.text()
-        //   return { path: link, contentKey }
-        // })
-
-        // const results = await Promise.all(fetchPromises)
-        // const successfulResults = results.filter(result => result !== null)
-        // const updatedCache = [...moduleCache, ...successfulResults]
-        // await c.env.KV.put(keyName, JSON.stringify(updatedCache))
-
         const { moduleNumber, moduleTotal } = c.req.valid('query')
         const res = await fetch(`${c.req.url.split('/refresh')[0]}/extract?moduleNumber=${moduleNumber}&moduleTotal=${moduleTotal}&taskNum=0`)
         if (!res.ok) return c.json({ error: 'Extract failed' }, 500)
       }
-
-      // const res = await fetch(`${c.req.url.replace('/refresh', '')}/combine`)
-      // if (!res.ok) return c.json({ error: 'Combine failed' }, 500)
 
     return c.text('ok')
   })
@@ -178,11 +163,12 @@ function createFeedModule(opt: Options) {
     const rss = feed.rss2()
     await c.env.KV.put(`feed-${keyName}`, rss)
     await c.env.KV.put('tasks', '[]')
+    await c.env.KV.put(keyName, JSON.stringify(contents.map(item => item.id)))
     if (moduleNumber < moduleTotal - 1) {
       const prefix = c.req.url.split('/modules')[0]
       await new Promise((resolve) => {
         fetch(`${prefix}/modules/${MODULES[moduleNumber + 1]}/refresh?moduleNumber=${moduleNumber + 1}&moduleTotal=${moduleTotal}`)
-        setTimeout(resolve, 600)
+        setTimeout(resolve, 1500)
       })
     }
     return c.text('ok')

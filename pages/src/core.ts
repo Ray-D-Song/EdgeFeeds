@@ -181,7 +181,8 @@ function createFeedModule(opt: Options) {
     if (!res.ok) return c.json({ error: `Refresh handler failed: ${MODULES[moduleNumber + 1]}` }, 500)
     await c.env.KV.put('tasks', '[]')
     if (moduleNumber < moduleTotal - 1) {
-      fetch(`${c.req.url.split(`/${MODULES[moduleNumber]}`)[0]}/${MODULES[moduleNumber+1]}/refresh?moduleNumber=${moduleNumber + 1}&moduleTotal=${moduleTotal}`)
+      const prefix = c.req.url.split('/modules')[0]
+      fetch(`${prefix}/modules/${MODULES[moduleNumber + 1]}/refresh?moduleNumber=${moduleNumber + 1}&moduleTotal=${moduleTotal}`)
     }
     return c.text('ok')
   })

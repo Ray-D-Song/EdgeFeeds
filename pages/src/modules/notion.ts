@@ -14,7 +14,7 @@ export default createFeedModule({
     if (!response.ok) return []
     const html = await response.text()
     const links: string[] = []
-    await htmlRewriter
+    await (await htmlRewriter
       .on('.post-preview > a', {
         element: (element) => {
           console.log('getLinksMethod_element', element)
@@ -25,7 +25,7 @@ export default createFeedModule({
           }
         }
       })
-      .transform(new Response(html))
+      .transform(new Response(html))).text()
     return links.map(link => `https://www.notion.com${formatUrl(link)}`)
   }
 })

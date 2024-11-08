@@ -23,9 +23,6 @@ export default createFeedModule({
         }
       })
       .transform(new Response(html))
-    return links
-  },
-  linkConvertMethod: (link) => {
-    return `https://shopify.engineering${formatUrl(link)}`
+    return links.map(link => `https://shopify.engineering${formatUrl(link)}`)
   }
 })

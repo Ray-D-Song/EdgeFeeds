@@ -29,10 +29,6 @@ export default createFeedModule({
         }
       })
       .transform(new Response(html))
-    return links
+    return links.map(link => `https://reactnative.dev${formatUrl(link)}`)
   },
-  // 链接转换方法
-  linkConvertMethod: (link) => {
-    return `https://reactnative.dev${formatUrl(link)}`
-  }
 })

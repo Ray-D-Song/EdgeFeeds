@@ -23,9 +23,6 @@ export default createFeedModule({
         }
       })
       .transform(new Response(html))
-    return links
+    return links.map(link => `https://about.gitlab.com${formatUrl(link)}`)
   },
-  linkConvertMethod: (link) => {
-    return `https://about.gitlab.com${formatUrl(link)}`
-  }
 })

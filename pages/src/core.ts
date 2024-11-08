@@ -180,7 +180,10 @@ function createFeedModule(opt: Options) {
     await c.env.KV.put('tasks', '[]')
     if (moduleNumber < moduleTotal - 1) {
       const prefix = c.req.url.split('/modules')[0]
-      fetch(`${prefix}/modules/${MODULES[moduleNumber + 1]}/refresh?moduleNumber=${moduleNumber + 1}&moduleTotal=${moduleTotal}`)
+      await new Promise((resolve) => {
+        fetch(`${prefix}/modules/${MODULES[moduleNumber + 1]}/refresh?moduleNumber=${moduleNumber + 1}&moduleTotal=${moduleTotal}`)
+        setTimeout(resolve, 600)
+      })
     }
     return c.text('ok')
   })

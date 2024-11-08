@@ -41,13 +41,17 @@ function createFeedModule(opt: Options) {
   newModule.get('/refresh', async (c) => {
     const links = await getLinksMethod()
     const currentFeedLinks = (await c.env.KV.get(`links-${keyName}`, 'json')) as string[] || []
+    console.log(currentFeedLinks)
     const unCachedLinks = links?.filter((link) => !currentFeedLinks.some((cache) => cache === link)).slice(0, 5)
+    console.log(unCachedLinks)
 
     if (unCachedLinks && unCachedLinks.length > 0) {
       for (const link of unCachedLinks) {
+        console.log(`${c.env.READABLE_SCRAPE_HOST}?url=${link}`)
         const res = await fetch(`${c.env.READABLE_SCRAPE_HOST}?url=${link}`)
         if (!res.ok) continue
         const { page } = (await res.json()) as { page: RawContent }
+        console.log(page)
         if (!page) continue
         await c.env.KV.put(`${keyName}-${link}`, JSON.stringify({
           id: link,

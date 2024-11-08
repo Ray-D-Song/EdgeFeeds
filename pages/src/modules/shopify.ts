@@ -16,7 +16,6 @@ export default createFeedModule({
     await htmlRewriter
       .on('.article--index > a', {
         element: (element) => {
-          console.log('shopify_element', element)
           const href = element.getAttribute('href')
           if (href && links.indexOf(href) === -1) {
             links.push(href)
@@ -25,7 +24,6 @@ export default createFeedModule({
       })
       .transform(new Response(html))
       .text()
-    console.log('shopify_links', links)
     return links.map(link => `https://shopify.engineering${formatUrl(link)}`)
   }
 })

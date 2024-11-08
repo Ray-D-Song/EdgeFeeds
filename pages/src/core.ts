@@ -1,12 +1,5 @@
 import { Hono } from 'hono'
 import { Feed } from 'feed'
-import { validator } from 'hono/validator'
-import { MODULES } from './constants'
-
-interface Task {
-  moduleName: string
-  todoTasks: string[]
-}
 
 interface Options {
   /**
@@ -27,122 +20,107 @@ interface Options {
   copyright: string
 
   getLinksMethod: () => Promise<string[]>
-
-  linkConvertMethod: (link: string) => string
 }
 
 function createFeedModule(opt: Options) {
-  const { keyName, url, title, description, copyright, getLinksMethod, linkConvertMethod } = opt
+  const { keyName, url, title, description, copyright, getLinksMethod } = opt
 
   const newModule = new Hono<{ Bindings: Bindings }>()
 
-  newModule.get('/refresh', 
-    validator('query', (value, c) => {
-      if (!value.moduleNumber) {
-        return c.json({ error: 'moduleNumber is required' }, 400)
-      }
-      if (!value.moduleTotal) {
-        return c.json({ error: 'moduleTotal is required' }, 400)
-      }
-      if (value.moduleNumber > value.moduleTotal) {
-        return c.json({ error: 'moduleNumber is greater than moduleTotal' }, 400)
-      }
-      return {
-        moduleNumber: Number(value.moduleNumber),
-        moduleTotal: Number(value.moduleTotal)
-      }
-    }),
-    async (c) => {
-      const links = await getLinksMethod()
-      const cache = await c.env.KV.get(keyName, 'json')
-      const moduleCache = cache ? cache as string[] : []
-      const unCachedLinks = links?.filter((link) => !moduleCache.some((cache) => cache === linkConvertMethod(link))).slice(0, 5)
-
-      if (unCachedLinks && unCachedLinks.length > 0) {
-        const tasks = (await c.env.KV.get('tasks', 'json')) as Task[] || []
-        const newTasks = unCachedLinks.map(linkConvertMethod)
-        const updatedTasks = [...tasks, { moduleName: keyName, todoTasks: newTasks }]
-        await c.env.KV.put('tasks', JSON.stringify(updatedTasks))
-
-        const { moduleNumber, moduleTotal } = c.req.valid('query')
-        const res = await fetch(`${c.req.url.split('/refresh')[0]}/extract?moduleNumber=${moduleNumber}&moduleTotal=${moduleTotal}&taskNum=0`)
-        if (!res.ok) return c.json({ error: 'Extract failed' }, 500)
-      }
-
-    return c.text('ok')
-  })
-
-  interface Source {
-    title: string
-    byline: string
-    content: string
-    excerpt: string
-    siteName: string
-  }
-  newModule.get('/extract', validator('query', (value, c) => {
-    if (!value.moduleNumber) return c.json({ error: 'moduleNumber is required' }, 400)
-    if (!value.moduleTotal) return c.json({ error: 'moduleTotal is required' }, 400)
-    if (!value.taskNum) return c.json({ error: 'taskNum is required' }, 400)
-    return {
-      moduleNumber: Number(value.moduleNumber),
-      moduleTotal: Number(value.moduleTotal),
-      taskNum: Number(value.taskNum)
-    }
-  }), async (c) => {
-    const { moduleNumber, moduleTotal, taskNum } = c.req.valid('query')
-    const tasks = (await c.env.KV.get('tasks', 'json')) as Task[] || []
-    const task = tasks.find((task) => task.moduleName === keyName)
-    if (!task) return c.json({ error: 'Task not found' }, 404)
-
-    const originalLink = task.todoTasks[taskNum]
-    const sourceResponse = await fetch(`${c.env.READABLE_SCRAPE_HOST}?url=${originalLink}`)
-    if (!sourceResponse.ok) return c.json({ error: 'Content extraction failed' }, 404)
-    const source = (await sourceResponse.json()) as {page: Source}
-    if (!source.page)
-      return c.json({ error: 'Content extraction failed' }, 404)
-    const { page } = source
-    const contentKey = crypto.randomUUID()
-    await c.env.KV.put(`${keyName}-${contentKey}`, JSON.stringify({
-      id: originalLink,
-      link: originalLink,
-      content: page.content,
-      title: page.title,
-      description: page.excerpt,
-      date: new Date()
-    }))
-    if (task.todoTasks.length === taskNum + 1) {
-      const res = await fetch(`${c.req.url.split('/extract')[0]}/combine?moduleNumber=${moduleNumber}&moduleTotal=${moduleTotal}`)
-      if (!res.ok) return c.json({ error: 'Combine failed' }, 500)
-    } else {
-      const res = await fetch(`${c.req.url.split('?')[0]}?moduleNumber=${moduleNumber}&moduleTotal=${moduleTotal}&taskNum=${taskNum + 1}`)
-      if (!res.ok) return c.json({ error: 'Extract failed' }, 500)
-    }
-    return c.text(`${keyName}-${contentKey}`)
-  })
-
   newModule.get('/feed', async (c) => {
-    const rss = await c.env.KV.get(`feed-${keyName}`)
+    const currentTime = new Date()
+    const lastUpdate = await c.env.KV.get(`${keyName}-last-update`)
+    if (!lastUpdate || currentTime.getTime() - new Date(lastUpdate).getTime() > 6 * 60 * 60 * 1000) {
+      const res = await fetch(`${c.req.url.split('/feed')[0]}/refresh`)
+      if (!res.ok) return c.json({ error: 'Refresh failed, please try again later' }, 500)
+    }
+    const rss = await c.env.KV.get(`combine-${keyName}`)
     return c.html(rss || '')
   })
 
-  newModule.get('/combine', validator('query', (value, c) => {
-    if (!value.moduleNumber) return c.json({ error: 'moduleNumber is required' }, 400)
-    if (!value.moduleTotal) return c.json({ error: 'moduleTotal is required' }, 400)
-    return {
-      moduleNumber: Number(value.moduleNumber),
-      moduleTotal: Number(value.moduleTotal)
+  newModule.get('/refresh', async (c) => {
+    const links = await getLinksMethod()
+    const currentFeedLinks = (await c.env.KV.get(`links-${keyName}`, 'json')) as string[] || []
+    const unCachedLinks = links?.filter((link) => !currentFeedLinks.some((cache) => cache === link)).slice(0, 5)
+
+    if (unCachedLinks && unCachedLinks.length > 0) {
+      for (const link of unCachedLinks) {
+        const res = await fetch(`${c.req.url.split('/modules')[0]}/scrape?url=${link}`)
+        if (!res.ok) continue
+        const { page } = (await res.json()) as { page: RawContent }
+        if (!page) continue
+        await c.env.KV.put(`${keyName}-${link}`, JSON.stringify({
+          id: link,
+          link,
+          content: page.content,
+          title: page.title,
+          description: page.excerpt,
+          date: new Date()
+        } satisfies Content))
+        currentFeedLinks.unshift(link)
+      }
     }
-  }), async (c) => {
-    const { moduleNumber, moduleTotal } = c.req.valid('query')
-    const list = await c.env.KV.list({
-      prefix: `${keyName}-`,
-      limit: 5
+    const linksNeedCombine = currentFeedLinks.slice(0, 5)
+    const res = await fetch(`${c.req.url.split('/refresh')[0]}/combine`, {
+      method: 'POST',
+      body: JSON.stringify(linksNeedCombine)
     })
-    const tasks = list.keys.map(async (key) => {
-      const content = await c.env.KV.get(key.name)
-      return content ? JSON.parse(content) : null
+    if (!res.ok) return c.json({ error: 'Combine failed' }, 500)
+    await c.env.KV.put(`links-${keyName}`, JSON.stringify(linksNeedCombine))
+    await c.env.KV.put(`last-update-${keyName}`, new Date().toISOString())
+    return c.text('ok')
+  })
+
+  // newModule.get('/extract', validator('query', (value, c) => {
+  //   if (!value.moduleNumber) return c.json({ error: 'moduleNumber is required' }, 400)
+  //   if (!value.moduleTotal) return c.json({ error: 'moduleTotal is required' }, 400)
+  //   if (!value.taskNum) return c.json({ error: 'taskNum is required' }, 400)
+  //   return {
+  //     moduleNumber: Number(value.moduleNumber),
+  //     moduleTotal: Number(value.moduleTotal),
+  //     taskNum: Number(value.taskNum)
+  //   }
+  // }), async (c) => {
+  //   const { moduleNumber, moduleTotal, taskNum } = c.req.valid('query')
+  //   const tasks = (await c.env.KV.get('tasks', 'json')) as Task[] || []
+  //   const task = tasks.find((task) => task.moduleName === keyName)
+  //   if (!task) return c.json({ error: 'Task not found' }, 404)
+
+  //   const originalLink = task.todoTasks[taskNum]
+  //   const sourceResponse = await fetch(`${c.env.READABLE_SCRAPE_HOST}?url=${originalLink}`)
+  //   if (!sourceResponse.ok) return c.json({ error: 'Content extraction failed' }, 404)
+  //   const source = (await sourceResponse.json()) as {page: Source}
+  //   if (!source.page)
+  //     return c.json({ error: 'Content extraction failed' }, 404)
+  //   const { page } = source
+  //   const contentKey = crypto.randomUUID()
+  //   await c.env.KV.put(`${keyName}-${contentKey}`, JSON.stringify({
+  //     id: originalLink,
+  //     link: originalLink,
+  //     content: page.content,
+  //     title: page.title,
+  //     description: page.excerpt,
+  //     date: new Date()
+  //   }))
+  //   if (task.todoTasks.length === taskNum + 1) {
+  //     const res = await fetch(`${c.req.url.split('/extract')[0]}/combine?moduleNumber=${moduleNumber}&moduleTotal=${moduleTotal}`)
+  //     if (!res.ok) return c.json({ error: 'Combine failed' }, 500)
+  //   } else {
+  //     const res = await fetch(`${c.req.url.split('?')[0]}?moduleNumber=${moduleNumber}&moduleTotal=${moduleTotal}&taskNum=${taskNum + 1}`)
+  //     if (!res.ok) return c.json({ error: 'Extract failed' }, 500)
+  //   }
+  //   return c.text(`${keyName}-${contentKey}`)
+  // })
+
+
+  newModule.post('/combine', async (c) => {
+    const links = await c.req.json()
+    if (!links || !Array.isArray(links)) return c.json({ error: 'Links is required' }, 400)
+    let contents: Content[] = []
+    links.forEach(async (link) => {
+      const content = await c.env.KV.get(`${keyName}-${link}`)
+      if (content) contents.push(JSON.parse(content))
     })
-    const contents = await Promise.all(tasks)
     const feed = new Feed({
       title,
       description,
@@ -155,22 +133,10 @@ function createFeedModule(opt: Options) {
       }
     })
     contents.forEach((content) => {
-      feed.addItem({
-        ...content,
-        date: new Date(content.date)
-      })
+      feed.addItem(content)
     })
     const rss = feed.rss2()
-    await c.env.KV.put(`feed-${keyName}`, rss)
-    await c.env.KV.put('tasks', '[]')
-    await c.env.KV.put(keyName, JSON.stringify(contents.map(item => item.id)))
-    if (moduleNumber < moduleTotal - 1) {
-      const prefix = c.req.url.split('/modules')[0]
-      await new Promise((resolve) => {
-        fetch(`${prefix}/modules/${MODULES[moduleNumber + 1]}/refresh?moduleNumber=${moduleNumber + 1}&moduleTotal=${moduleTotal}`)
-        setTimeout(resolve, 1500)
-      })
-    }
+    await c.env.KV.put(`combine-${keyName}`, rss)
     return c.text('ok')
   })
 

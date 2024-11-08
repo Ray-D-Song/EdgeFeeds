@@ -12,7 +12,7 @@ app.get('/', async (c) => {
 app.route('/modules', modules)
 
 app.get('/refresh-feeds', async (c) => {
-  const res = await fetch(`${c.req.url.replace('/refresh-feeds', '')}/refresh-handler?moduleNum=0&moduleTotal=${MODULES.length}`)
+  const res = await fetch(`${c.req.url.replace('/refresh-feeds', '')}/refresh-handler?moduleNumber=0&moduleTotal=${MODULES.length}`)
   if (!res.ok) {
     return c.json({ error: 'Failed to start tasks' }, 500)
   }
@@ -38,7 +38,7 @@ app.get('/refresh-handler',
   async (c) => {
     const { moduleNumber, moduleTotal } = c.req.valid('query')
     const module = MODULES[moduleNumber]
-    const res = await fetch(`${c.req.url.replace('/refresh-handler', '')}/modules/${module}/refresh?moduleNumber=${moduleNumber}&moduleTotal=${moduleTotal}`)
+    const res = await fetch(`${c.req.url.split('/refresh-handler')[0]}/modules/${module}/refresh?moduleNumber=${moduleNumber}&moduleTotal=${moduleTotal}`)
     if (!res.ok) {
       return c.json({ error: 'Failed to start task' }, 500)
     }

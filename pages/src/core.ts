@@ -40,8 +40,11 @@ function createFeedModule(opt: Options) {
 
   newModule.get('/refresh', async (c) => {
     const links = (await getLinksMethod()).slice(0, 5)
+    console.log('links', links)
     const currentFeedLinks = (await c.env.KV.get(`links-${keyName}`, 'json')) as string[] || []
+    console.log('currentFeedLinks', currentFeedLinks)
     const unCachedLinks = links?.filter((link) => !currentFeedLinks.some((cache) => cache === link)).slice(0, 5)
+    console.log('unCachedLinks', unCachedLinks)
 
     if (unCachedLinks && unCachedLinks.length > 0) {
       for (const link of unCachedLinks) {

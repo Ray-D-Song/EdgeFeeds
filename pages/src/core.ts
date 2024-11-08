@@ -177,8 +177,6 @@ function createFeedModule(opt: Options) {
     })
     const rss = feed.rss2()
     await c.env.KV.put(`feed-${keyName}`, rss)
-    const res = await fetch(`${c.req.url.replace('/combine', '')}/refresh-handler?moduleNumber=${moduleNumber + 1}&moduleTotal=${moduleTotal}`)
-    if (!res.ok) return c.json({ error: `Refresh handler failed: ${MODULES[moduleNumber + 1]}` }, 500)
     await c.env.KV.put('tasks', '[]')
     if (moduleNumber < moduleTotal - 1) {
       const prefix = c.req.url.split('/modules')[0]

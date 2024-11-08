@@ -177,9 +177,11 @@ function createFeedModule(opt: Options) {
     })
     const rss = feed.rss2()
     await c.env.KV.put(`feed-${keyName}`, rss)
-    if (moduleNumber === moduleTotal - 1) {
-      const res = await fetch(`${c.req.url.replace('/combine', '')}/refresh-handler?moduleNumber=${moduleNumber + 1}&moduleTotal=${moduleTotal}`)
-      if (!res.ok) return c.json({ error: `Refresh handler failed: ${MODULES[moduleNumber + 1]}` }, 500)
+    const res = await fetch(`${c.req.url.replace('/combine', '')}/refresh-handler?moduleNumber=${moduleNumber + 1}&moduleTotal=${moduleTotal}`)
+    if (!res.ok) return c.json({ error: `Refresh handler failed: ${MODULES[moduleNumber + 1]}` }, 500)
+    await c.env.KV.put('tasks', '[]')
+    if (moduleNumber < moduleTotal - 1) {
+      fetch(`${c.req.url.split(`/${MODULES[moduleNumber]}`)[0]}/${MODULES[moduleNumber+1]}/refresh?moduleNumber=${moduleNumber + 1}&moduleTotal=${moduleTotal}`)
     }
     return c.text('ok')
   })

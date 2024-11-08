@@ -45,7 +45,7 @@ function createFeedModule(opt: Options) {
 
     if (unCachedLinks && unCachedLinks.length > 0) {
       for (const link of unCachedLinks) {
-        const res = await fetch(`${c.req.url.split('/modules')[0]}/scrape?url=${link}`)
+        const res = await fetch(`${c.env.READABLE_SCRAPE_HOST}?url=${link}`)
         if (!res.ok) continue
         const { page } = (await res.json()) as { page: RawContent }
         if (!page) continue

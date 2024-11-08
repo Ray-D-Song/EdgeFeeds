@@ -3,20 +3,25 @@ import htmlRewriter from '../utils/htmlrewriter';
 import { formatUrl } from '../utils/format';
 
 export default createFeedModule({
-  keyName: 'shopify',
-  url: 'https://shopify.engineering/authors/shopify-engineering',
-  title: 'Shopify Engineering',
-  description: 'The latest articles from Shopify Engineering',
-  copyright: 'Shopify',
+  // 模块名称
+  keyName: 'dev-go',
+  // 源地址
+  url: 'https://dev.to/t/go',
+  // 订阅源标题
+  title: 'Dev.to Go',
+  // 订阅源描述
+  description: 'The latest articles from Dev.to Go',
+  // 版权信息
+  copyright: 'Dev.to',
+  // 获取链接方法
   getLinksMethod: async () => {
-    const response = await fetch('https://shopify.engineering/authors/shopify-engineering')
+    const response = await fetch('https://dev.to/t/go')
     if (!response.ok) return []
     const html = await response.text()
     const links: string[] = []
     await htmlRewriter
-      .on('.article--index > a', {
+      .on('.crayons-story__title > a', {
         element: (element) => {
-          console.log('shopify_element', element)
           const href = element.getAttribute('href')
           if (href && links.indexOf(href) === -1) {
             links.push(href)
@@ -25,7 +30,6 @@ export default createFeedModule({
       })
       .transform(new Response(html))
       .text()
-    console.log('shopify_links', links)
-    return links.map(link => `https://shopify.engineering${formatUrl(link)}`)
-  }
+    return links.map(link => `https://dev.to${formatUrl(link)}`)
+  },
 })

@@ -4,13 +4,14 @@
 
 ## 为什么会有这个项目
 
-起因是我想订阅科技公司和开源组织的博客，但它们没有提供 RSS 订阅源。  
+起因是我想订阅科技公司和开源组织的博客，但有一些没有提供 RSS 订阅源。  
 所以我写了这个项目，目前已经支持的模块有：
 
 - GitLab (modules/gitlab/feed)
 - Shopify (modules/shopify/feed)
 - Notion (modules/notion/feed)
 - React Native (modules/reactNative/feed)
+- Dev.to Go topics (modules/devGo/feed)
 
 你可以使用我的部署 [https://edge-feeds.pages.dev](https://edge-feeds.pages.dev) 来订阅这些网站。
 
@@ -43,7 +44,7 @@ export default createFeedModule({
     const html = await response.text()
     const links: string[] = []
     // 使用 htmlRewriter 解析 HTML, 并获取文章链接列表
-    htmlRewriter
+    await htmlRewriter
       .on('.sidebarItem_lnhn > a', {
         element: (element) => {
           const href = element.getAttribute('href')
@@ -53,12 +54,9 @@ export default createFeedModule({
         }
       })
       .transform(new Response(html))
+      .text()
     // 返回链接列表
-    return links
-  },
-  // 链接转换方法，将上一步获取的链接转换为完整的 URL
-  linkConvertMethod: (link) => {
-    return `https://reactnative.dev${formatUrl(link)}`
+    return links.map(link => `https://reactnative.dev${formatUrl(link)}`)
   }
 })
 ```
@@ -73,6 +71,8 @@ export default createFeedModule({
 
 如果你只是想抓取以内容为主的网站，比如某些公司的技术分享，那你可以使用 EdgeFeeds。  
 但如果你需要更复杂的抓取，比如使用无头浏览器对结果进行特定处理，那你还是应该使用 RSSHub。
+
+> 顺带一提，EdgeFeeds 抓取的内容会被永久归档到 Cloudflare KV 中。
 
 ## 部署
 

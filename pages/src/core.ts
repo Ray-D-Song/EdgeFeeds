@@ -84,7 +84,11 @@ function createFeedModule(opt: Options) {
     let contents: Content[] = []
     for (const link of links) {
       const content = await c.env.KV.get(`${keyName}-${link}`)
-      if (content) contents.push(JSON.parse(content))
+      if (content) {
+        const parsedContent = JSON.parse(content)
+        parsedContent.date = new Date(parsedContent.date)
+        contents.push(parsedContent)
+      }
     }
     const feed = new Feed({
       title,

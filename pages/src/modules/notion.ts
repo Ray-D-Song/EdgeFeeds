@@ -10,16 +10,13 @@ export default createFeedModule({
   copyright: 'Notion',
   getLinksMethod: async () => {
     const response = await fetch('https://www.notion.com/blog/topic/tech')
-    console.log('getLinksMethod_response', response)
     if (!response.ok) return []
     const html = await response.text()
     const links: string[] = []
     await (await htmlRewriter
       .on('.post-preview > a', {
         element: (element) => {
-          console.log('getLinksMethod_element', element)
           const href = element.getAttribute('href')
-          console.log('getLinksMethod_href', href)
           if (href && links.indexOf(href) === -1) {
             links.push(href)
           }

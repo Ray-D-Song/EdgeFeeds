@@ -39,20 +39,15 @@ function createFeedModule(opt: Options) {
   })
 
   newModule.get('/refresh', async (c) => {
-    const links = await getLinksMethod()
-    console.log('links', links)
+    const links = (await getLinksMethod()).slice(0, 5)
     const currentFeedLinks = (await c.env.KV.get(`links-${keyName}`, 'json')) as string[] || []
-    console.log('currentFeedLinks', currentFeedLinks)
     const unCachedLinks = links?.filter((link) => !currentFeedLinks.some((cache) => cache === link)).slice(0, 5)
-    console.log('unCachedLinks', unCachedLinks)
 
     if (unCachedLinks && unCachedLinks.length > 0) {
       for (const link of unCachedLinks) {
-        console.log(`${c.env.READABLE_SCRAPE_HOST}?url=${link}`)
         const res = await fetch(`${c.env.READABLE_SCRAPE_HOST}?url=${link}`)
         if (!res.ok) continue
         const { page } = (await res.json()) as { page: RawContent }
-        console.log(page)
         if (!page) continue
         await c.env.KV.put(`${keyName}-${link}`, JSON.stringify({
           id: link,
@@ -66,6 +61,7 @@ function createFeedModule(opt: Options) {
       }
     }
     const linksNeedCombine = currentFeedLinks.slice(0, 5)
+    console.log('linksNeedCombine', linksNeedCombine)
     const res = await fetch(`${c.req.url.split('/refresh')[0]}/combine`, {
       method: 'POST',
       body: JSON.stringify(linksNeedCombine)
@@ -76,50 +72,9 @@ function createFeedModule(opt: Options) {
     return c.text('ok')
   })
 
-  // newModule.get('/extract', validator('query', (value, c) => {
-  //   if (!value.moduleNumber) return c.json({ error: 'moduleNumber is required' }, 400)
-  //   if (!value.moduleTotal) return c.json({ error: 'moduleTotal is required' }, 400)
-  //   if (!value.taskNum) return c.json({ error: 'taskNum is required' }, 400)
-  //   return {
-  //     moduleNumber: Number(value.moduleNumber),
-  //     moduleTotal: Number(value.moduleTotal),
-  //     taskNum: Number(value.taskNum)
-  //   }
-  // }), async (c) => {
-  //   const { moduleNumber, moduleTotal, taskNum } = c.req.valid('query')
-  //   const tasks = (await c.env.KV.get('tasks', 'json')) as Task[] || []
-  //   const task = tasks.find((task) => task.moduleName === keyName)
-  //   if (!task) return c.json({ error: 'Task not found' }, 404)
-
-  //   const originalLink = task.todoTasks[taskNum]
-  //   const sourceResponse = await fetch(`${c.env.READABLE_SCRAPE_HOST}?url=${originalLink}`)
-  //   if (!sourceResponse.ok) return c.json({ error: 'Content extraction failed' }, 404)
-  //   const source = (await sourceResponse.json()) as {page: Source}
-  //   if (!source.page)
-  //     return c.json({ error: 'Content extraction failed' }, 404)
-  //   const { page } = source
-  //   const contentKey = crypto.randomUUID()
-  //   await c.env.KV.put(`${keyName}-${contentKey}`, JSON.stringify({
-  //     id: originalLink,
-  //     link: originalLink,
-  //     content: page.content,
-  //     title: page.title,
-  //     description: page.excerpt,
-  //     date: new Date()
-  //   }))
-  //   if (task.todoTasks.length === taskNum + 1) {
-  //     const res = await fetch(`${c.req.url.split('/extract')[0]}/combine?moduleNumber=${moduleNumber}&moduleTotal=${moduleTotal}`)
-  //     if (!res.ok) return c.json({ error: 'Combine failed' }, 500)
-  //   } else {
-  //     const res = await fetch(`${c.req.url.split('?')[0]}?moduleNumber=${moduleNumber}&moduleTotal=${moduleTotal}&taskNum=${taskNum + 1}`)
-  //     if (!res.ok) return c.json({ error: 'Extract failed' }, 500)
-  //   }
-  //   return c.text(`${keyName}-${contentKey}`)
-  // })
-
-
   newModule.post('/combine', async (c) => {
     const links = await c.req.json()
+    console.log('combine_links', links)
     if (!links || !Array.isArray(links)) return c.json({ error: 'Links is required' }, 400)
     let contents: Content[] = []
     links.forEach(async (link) => {
